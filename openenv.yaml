@@ -1,0 +1,51 @@
+spec_version: 1
+name: content-moderation-env
+version: "1.0.0"
+description: >
+  A realistic content moderation environment where an AI agent reviews
+  user-generated content (posts, comments, reviews) and takes moderation
+  actions based on platform policy rules.  Supports three tasks with
+  increasing difficulty: classification (easy), violation_detection (medium),
+  and moderation_decision (hard).
+
+tags:
+  - openenv
+  - content-moderation
+  - safety
+  - nlp
+
+tasks:
+  - name: classification
+    difficulty: easy
+    description: >
+      Classify content into safe, spam, or unsafe categories based on
+      surface-level cues.
+
+  - name: violation_detection
+    difficulty: medium
+    description: >
+      Identify the specific policy violation type (harassment, hate_speech,
+      scam, or none) present in a piece of content.
+
+  - name: moderation_decision
+    difficulty: hard
+    description: >
+      Make the final moderation routing decision — approve, reject, or
+      escalate — considering borderline and ambiguous cases.
+
+runtime:
+  entrypoint: "inference.py"
+  port: 8000
+
+environment:
+  API_BASE_URL:
+    description: "Base URL for the OpenAI-compatible API"
+    required: false
+    default: "https://api-inference.huggingface.co/v1"
+  MODEL_NAME:
+    description: "Model identifier to use for inference"
+    required: false
+    default: "mistralai/Mistral-7B-Instruct-v0.3"
+  HF_TOKEN:
+    description: "Hugging Face API token"
+    required: true
