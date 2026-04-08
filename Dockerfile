@@ -20,7 +20,5 @@ COPY . .
 # Expose the mandatory Hugging Face port
 EXPOSE 7860
 
-# Override default command to satisfy Hugging Face Spaces health check 
-# (HF expects a long-running process binding to port 7860).
-# The OpenEnv evaluator will still use `inference.py` via `openenv.yaml`.
-CMD ["python", "-m", "http.server", "7860"]
+# Start the FastAPI server that exposes OpenEnv endpoints (/reset, /step)
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "7860"]
