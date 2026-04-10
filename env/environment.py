@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from env.data import DATASET
+from env.data import get_items_by_difficulty
 from env.graders import ClassificationGrader, ModerationGrader, ViolationGrader
 from env.models import (
     Action,
@@ -107,13 +107,19 @@ class ContentModerationEnv:
                 f"Unknown task '{task_name}'. Choose from: {list(TASK_REGISTRY.keys())}"
             )
         self._task_config: TaskConfig = TASK_REGISTRY[task_name]
-        self._items = list(DATASET)  # deterministic copy
+        # Organize dynamically from Easy to Hard
+        self._items = (
+            get_items_by_difficulty("easy") +
+            get_items_by_difficulty("medium") +
+            get_items_by_difficulty("hard")
+        )
         self._current_index: int = 0
         self._step_count: int = 0
         self._done: bool = False
         self._cumulative_reward: float = 0.0
         self._history: List[HistoryEntry] = []
         self._last_action_error: Optional[str] = None
+        self._investigation_result: Optional[str] = None
         self._results: List[Tuple[str, str]] = []  # (predicted, expected)
         self._reasons: List[Optional[str]] = []
 
@@ -127,6 +133,7 @@ class ContentModerationEnv:
         self._cumulative_reward = 0.0
         self._history = []
         self._last_action_error = None
+        self._investigation_result = None
         self._results = []
         self._reasons = []
         return self._make_observation()
@@ -158,9 +165,39 @@ class ContentModerationEnv:
 
         self._last_action_error = None
 
+        item = self._items[self._current_index]
+
+        # --- Handle INVESTIGATE Tool Use ---
+        if action.action_type == ActionType.INVESTIGATE:
+            target = action.investigate_target
+            if target == "author_context":
+                self._investigation_result = item.author_context or "No hidden context available."
+            else:
+                self._investigation_result = f"Unknown investigate target: {target}"
+            
+            # Record investigate step in history but do not advance index or grade.
+            entry = HistoryEntry(
+                step=self._step_count,
+                content_id=item.id,
+                action_type=action.action_type.value,
+                action_value=str(target),
+                reward=0.0,
+            )
+            self._history.append(entry)
+            
+            # Check if agent is spamming investigate
+            self._cumulative_reward -= 0.05 
+            if self._step_count >= MAX_STEPS_PER_EPISODE:
+                self._done = True
+            
+            obs = self._make_observation()
+            return obs, Reward(value=-0.05, reason="Gathering context costs a small penalty"), self._done, self._make_info(valid_action=True)
+
+        # Clear active investigation result prior to extracting action
+        self._investigation_result = None
+
         # --- Extract predicted value ---
         predicted = self._extract_action_value(action)
-        item = self._items[self._current_index]
         expected = self._task_config.ground_truth_accessor(item)
 
         # --- Compute reward ---
@@ -228,17 +265,23 @@ class ContentModerationEnv:
             remaining_items=remaining,
             history=list(self._history),
             last_action_error=self._last_action_error,
+            investigation_result=self._investigation_result,
         )
 
     def _validate_action(self, action: Action) -> Optional[str]:
         """Return an error string if the action is invalid, else None."""
         expected_type = self._task_config.action_type
 
-        if action.action_type != expected_type:
+        if action.action_type != expected_type and action.action_type != ActionType.INVESTIGATE:
             return (
-                f"Expected action_type '{expected_type.value}' for task "
+                f"Expected action_type '{expected_type.value}' or 'investigate' for task "
                 f"'{self._task_config.name.value}', got '{action.action_type.value}'."
             )
+            
+        if action.action_type == ActionType.INVESTIGATE:
+            if not action.investigate_target:
+                return "action_type 'investigate' requires an 'investigate_target' field."
+            return None
 
         if action.action_type == ActionType.CLASSIFY:
             if action.label is None:

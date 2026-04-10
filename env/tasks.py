@@ -102,7 +102,7 @@ TASK_REGISTRY: Dict[str, TaskConfig] = {
     TaskName.MODERATION_DECISION.value: TaskConfig(
         name=TaskName.MODERATION_DECISION,
         action_type=ActionType.ROUTE,
-        available_actions=[md.value for md in ModerationDecision],
+        available_actions=[md.value for md in ModerationDecision] + ["investigate"],
         policy_context=MODERATION_POLICY,
         ground_truth_accessor=_get_moderation_decision,
     ),

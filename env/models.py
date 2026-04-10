@@ -39,6 +39,7 @@ class ActionType(str, Enum):
     CLASSIFY = "classify"
     FLAG = "flag"
     ROUTE = "route"
+    INVESTIGATE = "investigate"
 
 
 class TaskName(str, Enum):
@@ -63,6 +64,15 @@ class ContentItem(BaseModel):
         None,
         description="Human-readable policy reason for the ground-truth labels",
     )
+    difficulty: str = Field(default="easy", description="Difficulty tier: easy, medium, or hard")
+    author_context: Optional[str] = Field(
+        None, 
+        description="Hidden metadata to return if agent investigates the author"
+    )
+    required_reasoning_concepts: List[str] = Field(
+        default_factory=list,
+        description="Keywords required in reason for full supervision score"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -73,9 +83,10 @@ class Action(BaseModel):
     """Agent action submitted via step().
 
     Exactly one action branch should be filled depending on action_type:
-      - classify  → label
-      - flag      → violation_type
-      - route     → decision (+ optional reason)
+      - classify    → label
+      - flag        → violation_type
+      - route       → decision (+ optional reason)
+      - investigate → investigate_target
     """
 
     action_type: ActionType
@@ -85,6 +96,10 @@ class Action(BaseModel):
     reason: Optional[str] = Field(
         None,
         description="Optional reasoning for the moderation decision",
+    )
+    investigate_target: Optional[str] = Field(
+        None,
+        description="Target to investigate (e.g., 'author_history'). Required if action_type is 'investigate'",
     )
 
 
@@ -117,6 +132,10 @@ class Observation(BaseModel):
     remaining_items: int
     history: List[HistoryEntry] = Field(default_factory=list)
     last_action_error: Optional[str] = None
+    investigation_result: Optional[str] = Field(
+        None,
+        description="Context gathered from previous investigation step, if any."
+    )
 
 
 # ---------------------------------------------------------------------------

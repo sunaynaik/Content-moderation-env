@@ -75,15 +75,21 @@ def _build_prompt(obs: Observation) -> tuple[str, str]:
         )
     elif task == "moderation_decision":
         system += (
-            '- For moderation decision, respond with: {"action_type":"route","decision":"<approve|reject|escalate>","reason":"<brief reason>"}\n'
+            '- For moderation decision, you may EITHER route the content OR gather more context.\n'
+            '- To route, respond with: {"action_type":"route","decision":"<approve|reject|escalate>","reason":"<brief reason citing policy>"}\n'
+            '- To review the hidden author history before routing, respond with: {"action_type":"investigate","investigate_target":"author_context"}\n'
         )
 
     user = (
         f"Policy:\n{obs.policy_context}\n\n"
         f"Content (id={obs.content_id}):\n\"{obs.content_text}\"\n\n"
         f"Available actions: {obs.available_actions}\n\n"
-        "Respond with the JSON action only."
     )
+    
+    if getattr(obs, "investigation_result", None):
+        user += f"--- NEW AUTHOR CONTEXT ---\n{obs.investigation_result}\n\n"
+        
+    user += "Respond with the JSON action only."
 
     return system, user
 
@@ -203,6 +209,8 @@ def _action_to_str(action: Action) -> str:
     if action.action_type == ActionType.ROUTE:
         decision = action.decision.value if action.decision else "None"
         return f"route:{decision}"
+    if action.action_type == ActionType.INVESTIGATE:
+        return f"investigate:{action.investigate_target}"
     return f"unknown:{action.action_type.value}"
 
 
