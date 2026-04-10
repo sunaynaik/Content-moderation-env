@@ -1,5 +1,7 @@
 import traceback
 from typing import Any, Dict, Optional
+import os
+import uvicorn
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -82,3 +84,10 @@ async def root():
 @app.head("/")
 async def root_head():
     return JSONResponse(content={"status": "ok"})
+
+def start():
+    port = int(os.environ.get("PORT", 7860))
+    uvicorn.run("server.app:app", host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    start()
