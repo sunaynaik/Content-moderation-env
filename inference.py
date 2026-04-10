@@ -143,6 +143,7 @@ def run(task_name: str = "classification") -> None:
         env = ContentModerationEnv(task_name=task_name)
         obs = env.reset()
         done = False
+        score_val = 0.0
 
         while not done:
             system_prompt, user_prompt = _build_prompt(obs)
@@ -169,6 +170,9 @@ def run(task_name: str = "classification") -> None:
             steps += 1
             rewards.append(reward.value)
 
+            if done:
+                score_val = info.get("score", 0.0)
+
             error_str = info.get("last_action_error") or "null"
             action_str = _action_to_str(action)
             done_str = "true" if done else "false"
@@ -183,10 +187,11 @@ def run(task_name: str = "classification") -> None:
 
     except Exception:
         traceback.print_exc(file=sys.stderr)
+        score_val = 0.0
 
     rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else ""
     success_str = "true" if success else "false"
-    print(f"[END]   success={success_str} steps={steps} rewards={rewards_str}", flush=True)
+    print(f"[END]   success={success_str} steps={steps} rewards={rewards_str} score={score_val:.4f}", flush=True)
 
 
 def _action_to_str(action: Action) -> str:
