@@ -17,18 +17,21 @@ tags:
 tasks:
   - name: classification
     difficulty: easy
+    grader: "env.graders:classification_grader"
     description: >
       Classify content into safe, spam, or unsafe categories based on
       surface-level cues.
 
   - name: violation_detection
     difficulty: medium
+    grader: "env.graders:violation_grader"
     description: >
       Identify the specific policy violation type (harassment, hate_speech,
       scam, or none) present in a piece of content.
 
   - name: moderation_decision
     difficulty: hard
+    grader: "env.graders:moderation_grader"
     description: >
       Make the final moderation routing decision — approve, reject, or
       escalate — considering borderline and ambiguous cases.
