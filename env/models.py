@@ -149,3 +149,4 @@ class EnvironmentState(BaseModel):
     cumulative_reward: float
     history: List[HistoryEntry] = Field(default_factory=list)
     last_action_error: Optional[str] = None
+    score: Optional[float] = None

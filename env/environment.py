@@ -201,6 +201,7 @@ class ContentModerationEnv:
             cumulative_reward=self._cumulative_reward,
             history=list(self._history),
             last_action_error=self._last_action_error,
+            score=self._compute_task_score() if self._done else None,
         )
 
     # ---- Internal helpers --------------------------------------------------
@@ -293,7 +294,9 @@ class ContentModerationEnv:
             "last_action_error": self._last_action_error,
         }
         if self._done:
-            info["task_score"] = self._compute_task_score()
+            score = self._compute_task_score()
+            info["task_score"] = score
+            info["score"] = score
         return info
 
     def _compute_task_score(self) -> float:
