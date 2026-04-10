@@ -1,12 +1,25 @@
 """Deterministic graders for each task in the Content Moderation Environment.
 
 Each grader evaluates a list of (predicted, ground_truth) pairs and returns
-a score in [0.0, 1.0].  The grading is fully deterministic and reproducible.
+a score strictly in (0.0, 1.0).  The grading is fully deterministic and
+reproducible.
 """
 
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _clamp_score(score: float) -> float:
+    """Clamp a score to be strictly between 0 and 1 (never exactly 0.0 or 1.0).
+
+    The OpenEnv validator requires scores in the open interval (0, 1).
+    """
+    return max(0.01, min(0.99, score))
 
 
 # ---------------------------------------------------------------------------
@@ -17,7 +30,7 @@ class BaseGrader:
     """Abstract base grader."""
 
     def grade(self, results: List[Tuple[str, str]]) -> float:
-        """Return a score in [0.0, 1.0] given (predicted, expected) pairs."""
+        """Return a score in (0.0, 1.0) given (predicted, expected) pairs."""
         raise NotImplementedError
 
 
@@ -34,7 +47,7 @@ class ClassificationGrader(BaseGrader):
         on certain ambiguous items)
       - wrong             → 0.0
 
-    Final score = mean of per-item scores.
+    Final score = clamped mean of per-item scores.
     """
 
     # Pairs where partial credit is reasonable (order-independent)
@@ -45,7 +58,7 @@ class ClassificationGrader(BaseGrader):
 
     def grade(self, results: List[Tuple[str, str]]) -> float:
         if not results:
-            return 0.0
+            return _clamp_score(0.0)
         total = 0.0
         for predicted, expected in results:
             if predicted == expected:
@@ -53,7 +66,7 @@ class ClassificationGrader(BaseGrader):
             elif frozenset({predicted, expected}) in self.BORDERLINE_PAIRS:
                 total += 0.5
             # else: 0.0
-        return round(total / len(results), 4)
+        return _clamp_score(round(total / len(results), 4))
 
 
 # ---------------------------------------------------------------------------
@@ -70,12 +83,12 @@ class ViolationGrader(BaseGrader):
       - wrong violation type but at least flagged  → 0.25
       - wrong                           → 0.0
 
-    Final score = mean of per-item scores.
+    Final score = clamped mean of per-item scores.
     """
 
     def grade(self, results: List[Tuple[str, str]]) -> float:
         if not results:
-            return 0.0
+            return _clamp_score(0.0)
         total = 0.0
         for predicted, expected in results:
             if predicted == expected:
@@ -84,7 +97,7 @@ class ViolationGrader(BaseGrader):
                 # Wrong specific violation but at least flagged something
                 total += 0.25
             # else: 0.0
-        return round(total / len(results), 4)
+        return _clamp_score(round(total / len(results), 4))
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +114,7 @@ class ModerationGrader(BaseGrader):
       - predicted "approve" when truth is not "approve" → 0.0  (dangerous miss)
       - other mismatch                         → 0.1
 
-    Final score = mean of per-item scores.
+    Final score = clamped mean of per-item scores.
     """
 
     def grade(
@@ -110,7 +123,7 @@ class ModerationGrader(BaseGrader):
         reasons: Optional[List[Optional[str]]] = None,
     ) -> float:
         if not results:
-            return 0.0
+            return _clamp_score(0.0)
         total = 0.0
         for i, (predicted, expected) in enumerate(results):
             if predicted == expected:
@@ -124,4 +137,4 @@ class ModerationGrader(BaseGrader):
             else:
                 item_score = 0.1
             total += item_score
-        return round(total / len(results), 4)
+        return _clamp_score(round(total / len(results), 4))
